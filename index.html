@@ -6,6 +6,9 @@
 <meta name="description" content="Vania Almeida Estética – Realçando sua beleza com elegância e cuidado. Clínica de estética premium em João Pessoa.">
 <meta name="keywords" content="estética, beleza, harmonização facial, botox, preenchimento, limpeza de pele, João Pessoa">
 <title>Vania Almeida Estética | Clínica Premium</title>
+<link rel="icon" href="logo.jpeg">
+<link rel="shortcut icon" href="logo.jpeg">
+<link rel="apple-touch-icon" href="logo.jpeg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
@@ -2094,7 +2097,6 @@ footer::before {
 
   <div class="container">
 
-    <!-- HEADER -->
     <div class="gallery-header">
 
       <div class="reveal">
@@ -2107,7 +2109,6 @@ footer::before {
         <div class="gold-line-left"></div>
       </div>
 
-      <!-- FILTROS -->
       <div class="gallery-filters reveal">
 
         <button class="filter-btn active"
@@ -2132,49 +2133,40 @@ footer::before {
     <!-- GRID -->
     <div class="gallery-grid" id="galleryGrid">
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="dr">
-        <img src="DrClinica1.jpeg" alt="">
+        <img src="DrClinica1.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="dr">
-        <img src="Dr2.jpeg" alt="">
+        <img src="Dr2.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="dr">
-        <img src="DrNaMaca.jpeg" alt="">
+        <img src="DrNaMaca.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="Clinica.jpeg" alt="">
+        <img src="Clinica.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="clinica2.jpeg" alt="">
+        <img src="clinica2.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="clinica3.jpeg" alt="">
+        <img src="clinica3.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="clinica4.jpeg" alt="">
+        <img src="clinica4.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="clinica5.jpeg" alt="">
+        <img src="clinica5.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
-      <!-- FOTO -->
       <div class="gallery-item" data-cat="clinica">
-        <img src="clinica6.jpeg" alt="">
+        <img src="clinica6.jpeg" alt="" onclick="openImage(this.src)">
       </div>
 
     </div>
@@ -2183,61 +2175,122 @@ footer::before {
 
 </section>
 
+<!-- ========= MODAL ========= -->
+<div id="imageModal" class="image-modal" onclick="closeImage()">
+
+  <span class="modal-close">&times;</span>
+
+  <img id="modalImage" class="modal-image" src="" alt="">
+
+</div>
+
 <!-- ========= CSS ========= -->
 <style>
 
-  /* GRID ESTILO PINTEREST */
+.gallery-grid{
+  column-count:3;
+  column-gap:18px;
+  margin-top:45px;
+}
+
+.gallery-item{
+  break-inside:avoid;
+  margin-bottom:18px;
+  overflow:hidden;
+  border-radius:20px;
+  cursor:pointer;
+  box-shadow:0 5px 16px rgba(0,0,0,.08);
+}
+
+.gallery-item img{
+  width:100%;
+  display:block;
+  transition:.4s;
+}
+
+.gallery-item:hover img{
+  transform:scale(1.03);
+}
+
+/* MODAL */
+
+.image-modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.95);
+  z-index:99999;
+  justify-content:center;
+  align-items:center;
+}
+
+.image-modal.active{
+  display:flex;
+}
+
+.modal-image{
+  max-width:95%;
+  max-height:95vh;
+  border-radius:12px;
+}
+
+.modal-close{
+  position:absolute;
+  top:20px;
+  right:30px;
+  color:#fff;
+  font-size:50px;
+  cursor:pointer;
+  line-height:1;
+}
+
+/* TABLET */
+
+@media(max-width:992px){
+
   .gallery-grid{
-    column-count:3;
-    column-gap:18px;
-    margin-top:45px;
+    column-count:2;
   }
 
-  /* ITEM */
-  .gallery-item{
-    position:relative;
-    break-inside:avoid;
-    overflow:hidden;
-    border-radius:22px;
-    margin-bottom:18px;
-    background:#fff;
-    box-shadow:0 5px 16px rgba(0,0,0,0.08);
+}
+
+/* CELULAR */
+
+@media(max-width:768px){
+
+  .gallery-grid{
+    column-count:1;
   }
 
-  /* IMAGEM */
-  .gallery-item img{
-    width:100%;
-    height:auto;
-    display:block;
-    transition:0.5s ease;
-  }
-
-  /* HOVER */
-  .gallery-item:hover img{
-    transform:scale(1.03);
-  }
-
-  /* TABLET */
-  @media(max-width:992px){
-
-    .gallery-grid{
-      column-count:2;
-      column-gap:16px;
-    }
-
-  }
-
-  /* CELULAR */
-  @media(max-width:768px){
-
-    .gallery-grid{
-      column-count:1;
-      column-gap:14px;
-    }
-
-  }
+}
 
 </style>
+
+<!-- ========= JAVASCRIPT ========= -->
+<script>
+
+function openImage(src){
+
+  document.getElementById('modalImage').src = src;
+  document.getElementById('imageModal').classList.add('active');
+
+}
+
+function closeImage(){
+
+  document.getElementById('imageModal').classList.remove('active');
+
+}
+
+document.addEventListener('keydown', function(e){
+
+  if(e.key === 'Escape'){
+    closeImage();
+  }
+
+});
+
+</script>
 
 <!-- ========= LOCALIZAÇÃO ========= -->
 <section id="localizacao">
