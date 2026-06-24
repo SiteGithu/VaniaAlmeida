@@ -1,916 +1,1322 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-   <meta property="og:title" content="Vânia Almeida">
-  <meta property="og:description" content="Vânia Almeida Esteta – Realçando sua beleza com elegância e cuidado. Clínica de estética avançada em João Pessoa, PB.">
-  <meta property="og:type" content="website">
-  
-  <!-- Links exatos do seu site no GitHub Pages -->
-  <meta property="og:url" content="https://sitegithu.github.io/VaniaAlmeida/">
-  <meta property="og:image" content="https://github.io">
+const SUPABASE_URL = 'https://aqfdldzszoplimzhkmwc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Ga8AAV2CxPz9OB8ug_vYyA_g_Fhc_7w'; // Substitua pela sua anon/public key
 
+// Inicializa cliente Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Vânia Almeida – Realçando sua beleza com elegância e cuidado. Clínica de estética avançada em João Pessoa, PB.">
-<meta name="keywords" content="estética, beleza, harmonização facial, botox, preenchimento, limpeza de pele, João Pessoa, Paraíba">
-<title>Vânia Almeida</title>
-<link rel="icon" href="Design sem nome.png">
-<link rel="shortcut icon" href="Design sem nome.png">
-<link rel="apple-touch-icon" href="Design sem nome.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Jost:wght@200;300;400;500&display=swap" rel="stylesheet">
-<style>
-/* =====================
-   VARIABLES
-===================== */
-:root {
-  --gold:#C9A84C;--gold-light:#E8D08A;--gold-pale:#F5EDD0;--gold-dark:#9E7A2F;
-  --white:#FFF;--off-white:#FAF8F4;--cream:#F5F0E8;
-  --text-dark:#2A2520;--text-mid:#5A5048;--text-light:#8A8078;
-  --shadow-gold:rgba(201,168,76,.18);--shadow-soft:rgba(42,37,32,.08);
-  --font-d:'Cormorant Garamond',serif;--font-b:'Jost',sans-serif;
-  --tr:all .45s cubic-bezier(.25,.46,.45,.94);
-  --bg:1px solid rgba(201,168,76,.35);--bgs:1px solid rgba(201,168,76,.65);
-}
+// ─── Estado Global ────────────────────────────────────────────
+let currentUser   = null;
+let currentPage   = 'dashboard';
+let sortState     = { table: '', key: '', asc: true };
+let charts        = {};
+let notifications = [];
+let allEntradas   = [];  // cache local para performance
+let allSaidas     = [];
+let allAgenda     = [];
+let reciboData    = null;
+let deferredPWA   = null;
 
-/* =====================
-   RESET
-===================== */
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth;font-size:16px}
-body{font-family:var(--font-b);background:var(--white);color:var(--text-dark);overflow-x:hidden;line-height:1.7}
-img{max-width:100%;height:auto;display:block}
-a{text-decoration:none;color:inherit}
-button{cursor:pointer;font-family:var(--font-b);border:none}
-ul{list-style:none}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-track{background:var(--off-white)}
-::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px}
+// ─── INICIALIZAÇÃO ────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  // Restaurar tema antes de mostrar qualquer coisa
+  const theme = localStorage.getItem('cf_theme');
+  if (theme) document.documentElement.setAttribute('data-theme', theme);
 
-/* =====================
-   UTILITY
-===================== */
-.container{max-width:1200px;margin:0 auto;padding:0 40px}
-.section-tag{font-family:var(--font-b);font-size:.7rem;font-weight:400;letter-spacing:.35em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:12px}
-.section-title{font-family:var(--font-d);font-size:clamp(2rem,4vw,3.2rem);font-weight:400;color:var(--text-dark);line-height:1.15;margin-bottom:20px}
-.section-title em{font-style:italic;color:var(--gold-dark)}
-.section-subtitle{font-family:var(--font-b);font-size:.9rem;font-weight:300;color:var(--text-light);max-width:520px;line-height:1.8}
-.gold-line{width:50px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:24px auto}
-.gold-line-left{width:50px;height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:24px 0}
-
-/* =====================
-   REVEAL
-===================== */
-.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
-.reveal.visible{opacity:1;transform:translateY(0)}
-.reveal-left{opacity:0;transform:translateX(-30px);transition:opacity .8s ease,transform .8s ease}
-.reveal-left.visible{opacity:1;transform:translateX(0)}
-.reveal-right{opacity:0;transform:translateX(30px);transition:opacity .8s ease,transform .8s ease}
-.reveal-right.visible{opacity:1;transform:translateX(0)}
-.d1{transition-delay:.1s}.d2{transition-delay:.2s}.d3{transition-delay:.3s}.d4{transition-delay:.4s}.d5{transition-delay:.5s}
-
-/* =====================
-   NAVBAR
-===================== */
-#navbar{position:fixed;top:0;left:0;width:100%;z-index:1000;padding:16px 0;transition:var(--tr)}
-#navbar.scrolled{background:rgba(255,255,255,.97);backdrop-filter:blur(20px);padding:10px 0;border-bottom:var(--bg);box-shadow:0 4px 30px var(--shadow-soft)}
-.nav-container{display:flex;align-items:center;justify-content:space-between;max-width:1200px;margin:0 auto;padding:0 40px}
-.nav-logo{display:flex;align-items:center;gap:12px}
-.logo-box{width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid var(--gold);flex-shrink:0;background:var(--gold-pale)}
-.logo-box img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
-.nav-brand{display:flex;flex-direction:column}
-.nav-brand-name{font-family:var(--font-d);font-size:1.1rem;font-weight:500;color:var(--text-dark);letter-spacing:.05em}
-.nav-brand-sub{font-size:.58rem;font-weight:300;letter-spacing:.22em;text-transform:uppercase;color:var(--gold)}
-.nav-links{display:flex;align-items:center;gap:28px}
-.nav-links a{font-size:.7rem;font-weight:400;letter-spacing:.2em;text-transform:uppercase;color:var(--text-mid);position:relative;transition:color .3s}
-.nav-links a::after{content:'';position:absolute;bottom:-3px;left:0;width:0;height:1px;background:var(--gold);transition:width .3s ease}
-.nav-links a:hover{color:var(--gold-dark)}
-.nav-links a:hover::after{width:100%}
-.nav-cta{padding:10px 22px;background:transparent;border:var(--bgs)!important;color:var(--gold-dark)!important;font-size:.66rem!important;font-weight:400!important;border-radius:0!important;letter-spacing:.22em!important;transition:var(--tr)!important}
-.nav-cta:hover{background:var(--gold)!important;color:var(--white)!important}
-.nav-cta::after{display:none!important}
-.hamburger{display:none;flex-direction:column;gap:5px;cursor:pointer;padding:6px;background:none;border:none}
-.hamburger span{display:block;width:24px;height:1.5px;background:var(--text-dark);transition:var(--tr)}
-.mobile-menu{display:none;position:fixed;top:0;left:0;width:100%;height:100vh;background:rgba(255,255,255,.99);z-index:2000;flex-direction:column;align-items:center;justify-content:center;gap:28px;backdrop-filter:blur(20px)}
-.mobile-menu.open{display:flex}
-.mobile-menu a{font-family:var(--font-d);font-size:2rem;font-weight:400;color:var(--text-dark);font-style:italic;transition:color .3s;letter-spacing:.04em}
-.mobile-menu a:hover{color:var(--gold-dark)}
-.mobile-close{position:absolute;top:24px;right:32px;font-size:1.6rem;color:var(--text-dark);cursor:pointer;background:none;border:none;line-height:1}
-.mobile-cta-btn{margin-top:8px;padding:14px 36px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:var(--white)!important;font-family:var(--font-b)!important;font-size:.75rem!important;font-weight:500!important;font-style:normal!important;letter-spacing:.25em;text-transform:uppercase}
-
-/* =====================
-   HERO
-===================== */
-#home{min-height:100vh;display:flex;align-items:center;position:relative;overflow:hidden;background:var(--off-white)}
-.hero-bg{position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 80% 50%,rgba(201,168,76,.07) 0%,transparent 70%),radial-gradient(ellipse 50% 80% at 10% 80%,rgba(201,168,76,.05) 0%,transparent 60%);pointer-events:none}
-.hero-ornament{position:absolute;right:-80px;top:50%;transform:translateY(-50%);width:700px;height:700px;border-radius:50%;border:1px solid rgba(201,168,76,.13);pointer-events:none}
-.hero-ornament::before{content:'';position:absolute;inset:40px;border-radius:50%;border:1px solid rgba(201,168,76,.08)}
-.hero-ornament::after{content:'';position:absolute;inset:80px;border-radius:50%;border:1px solid rgba(201,168,76,.05)}
-.hero-content{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:70px;width:100%;max-width:1200px;margin:0 auto;padding:120px 40px 80px}
-.hero-eyebrow{display:flex;align-items:center;gap:14px;margin-bottom:24px}
-.hero-eyebrow-line{width:40px;height:1px;background:var(--gold);flex-shrink:0}
-.hero-eyebrow span{font-size:.66rem;font-weight:400;letter-spacing:.35em;text-transform:uppercase;color:var(--gold)}
-.hero-title{font-family:var(--font-d);font-size:clamp(3rem,5.5vw,5rem);font-weight:300;line-height:1;color:var(--text-dark);margin-bottom:6px}
-.hero-title em{font-style:italic;color:var(--gold-dark);display:block}
-.hero-subtitle{font-family:var(--font-d);font-size:clamp(1rem,2vw,1.35rem);font-weight:300;font-style:italic;color:var(--text-light);margin-bottom:28px;line-height:1.5}
-.hero-desc{font-size:.87rem;font-weight:300;color:var(--text-mid);max-width:420px;line-height:1.9;margin-bottom:44px}
-.hero-actions{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.btn-primary{display:inline-flex;align-items:center;justify-content:center;padding:15px 36px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:var(--white);font-size:.7rem;font-weight:400;letter-spacing:.25em;text-transform:uppercase;border:none;cursor:pointer;position:relative;overflow:hidden;transition:var(--tr)}
-.btn-primary::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;background:linear-gradient(135deg,var(--gold-light),var(--gold));transition:left .4s ease}
-.btn-primary:hover::before{left:0}
-.btn-primary span{position:relative;z-index:1}
-.btn-primary:hover{box-shadow:0 8px 30px var(--shadow-gold);transform:translateY(-2px)}
-.btn-outline{display:inline-flex;align-items:center;justify-content:center;padding:14px 32px;background:transparent;color:var(--text-dark);font-size:.7rem;font-weight:400;letter-spacing:.25em;text-transform:uppercase;border:var(--bg);cursor:pointer;transition:var(--tr)}
-.btn-outline:hover{background:var(--gold-pale);border-color:var(--gold);color:var(--gold-dark)}
-
-/* hero pills */
-.hero-pills{display:flex;gap:10px;margin-top:40px;padding-top:36px;border-top:var(--bg);flex-wrap:wrap}
-.hero-pill{padding:8px 18px;border:var(--bg);background:var(--white);display:flex;align-items:center;gap:8px;font-size:.68rem;font-weight:400;letter-spacing:.12em;text-transform:uppercase;color:var(--text-mid)}
-.hero-pill-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex-shrink:0}
-
-/* hero image */
-.hero-image-area{position:relative}
-.hero-img-frame{position:relative;aspect-ratio:4/5;max-height:600px;overflow:hidden}
-.hero-img-frame::before{content:'';position:absolute;inset:-16px;border:var(--bg);pointer-events:none;z-index:2}
-.hero-img-frame img{width:100%;height:100%;object-fit:cover;display:block;object-position:center 10%}
-.hero-badge{position:absolute;bottom:36px;left:-28px;background:var(--white);border:var(--bg);padding:14px 20px;box-shadow:0 8px 40px var(--shadow-soft);z-index:3}
-.hero-badge-inner{display:flex;align-items:center;gap:12px}
-.badge-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);animation:pulse 2s infinite;flex-shrink:0}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
-.badge-text{font-size:.7rem;color:var(--text-mid);font-weight:300}
-.badge-text strong{display:block;font-weight:500;color:var(--text-dark);font-size:.76rem}
-.hero-float-tag{position:absolute;top:36px;right:-16px;background:linear-gradient(135deg,var(--gold),var(--gold-dark));color:var(--white);padding:10px 18px;z-index:3}
-.hero-float-tag span{font-size:.6rem;letter-spacing:.25em;text-transform:uppercase}
-
-/* =====================
-   SERVICES
-===================== */
-#servicos{padding:110px 0;background:var(--off-white);position:relative;overflow:hidden}
-#servicos::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-#servicos::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.services-header{text-align:center;margin-bottom:60px}
-.services-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-.service-card{background:var(--white);border:var(--bg);padding:32px 24px;position:relative;overflow:hidden;transition:var(--tr);display:flex;flex-direction:column}
-.service-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);transform:scaleX(0);transition:transform .4s ease}
-.service-card:hover{box-shadow:0 16px 60px var(--shadow-gold);transform:translateY(-6px)}
-.service-card:hover::before{transform:scaleX(1)}
-.sc-icon{width:48px;height:48px;border:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:18px;font-size:1.25rem;background:var(--off-white);transition:var(--tr)}
-.service-card:hover .sc-icon{background:var(--gold-pale);border-color:var(--gold)}
-.sc-name{font-family:var(--font-d);font-size:1.25rem;font-weight:500;color:var(--text-dark);margin-bottom:8px}
-.sc-desc{font-size:.81rem;font-weight:300;color:var(--text-light);line-height:1.7;flex-grow:1;margin-bottom:18px}
-.sc-footer{display:flex;align-items:center;justify-content:space-between;padding-top:18px;border-top:var(--bg)}
-.sc-price{font-family:var(--font-d);font-size:1.35rem;font-weight:400;color:var(--gold-dark);line-height:1.2}
-.sc-price small{font-size:.75rem;font-weight:300;color:var(--text-light);font-family:var(--font-b);display:block}
-.btn-service{padding:8px 18px;background:transparent;border:var(--bgs);color:var(--gold-dark);font-size:.62rem;font-weight:400;letter-spacing:.2em;text-transform:uppercase;transition:var(--tr);white-space:nowrap;flex-shrink:0}
-.btn-service:hover{background:var(--gold);color:var(--white);border-color:var(--gold)}
-
-/* =====================
-   GALLERY
-===================== */
-#galeria{padding:110px 0;background:var(--white)}
-.gallery-header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:40px;gap:20px;flex-wrap:wrap}
-.gallery-filters{display:flex;gap:8px;flex-wrap:wrap}
-.filter-btn{padding:8px 18px;background:transparent;border:var(--bg);color:var(--text-mid);font-size:.66rem;font-weight:400;letter-spacing:.18em;text-transform:uppercase;transition:var(--tr)}
-.filter-btn.active,.filter-btn:hover{background:var(--gold);color:var(--white);border-color:var(--gold)}
-
-/* Masonry */
-.gallery-grid{columns:3;column-gap:16px}
-.gallery-item{break-inside:avoid;margin-bottom:16px;overflow:hidden;border-radius:12px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.07);position:relative}
-.gallery-item img{width:100%;display:block;transition:transform .5s ease}
-.gallery-item:hover img{transform:scale(1.04)}
-.gallery-overlay{position:absolute;inset:0;background:linear-gradient(180deg,transparent 50%,rgba(201,168,76,.8) 100%);opacity:0;transition:opacity .4s ease;display:flex;align-items:flex-end;padding:16px;border-radius:12px}
-.gallery-item:hover .gallery-overlay{opacity:1}
-.overlay-text{color:var(--white);font-family:var(--font-d);font-size:1rem;font-style:italic}
-
-/* Modal */
-.image-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:99999;justify-content:center;align-items:center}
-.image-modal.active{display:flex}
-.modal-image{max-width:95%;max-height:95vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.modal-close{position:absolute;top:20px;right:28px;color:#fff;font-size:48px;cursor:pointer;line-height:1;background:none;border:none;font-weight:200}
-
-/* =====================
-   LOCALIZAÇÃO
-===================== */
-#localizacao{padding:110px 0;background:var(--off-white)}
-.localizacao-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
-.map-container{position:relative;border:var(--bg)}
-.map-container::before{content:'';position:absolute;top:-8px;left:-8px;right:8px;bottom:8px;border:var(--bg);pointer-events:none;z-index:-1}
-.map-iframe{width:100%;height:400px;display:block;filter:grayscale(15%) contrast(1.05);border:none}
-.info-block{margin-bottom:32px;padding-bottom:32px;border-bottom:var(--bg)}
-.info-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
-.info-block-title{font-size:.63rem;font-weight:400;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
-.info-block-content{font-family:var(--font-d);font-size:1.05rem;font-weight:400;color:var(--text-dark);line-height:1.6}
-.info-link{display:inline-flex;align-items:center;gap:10px;font-size:.82rem;font-weight:400;color:var(--text-mid);transition:color .3s;margin-top:8px}
-.info-link:hover{color:var(--gold-dark)}
-.info-link-icon{width:30px;height:30px;border:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.85rem;transition:var(--tr);flex-shrink:0}
-.info-link:hover .info-link-icon{background:var(--gold-pale)}
-.horario-list{display:flex;flex-direction:column;gap:8px}
-.horario-item{display:flex;justify-content:space-between;align-items:center;font-size:.82rem;font-weight:300;padding:6px 0;border-bottom:1px solid rgba(201,168,76,.1)}
-.horario-item:last-child{border-bottom:none}
-.horario-dia{color:var(--text-mid)}
-.horario-hora{color:var(--text-dark);font-weight:400}
-.btn-directions{display:inline-flex;align-items:center;gap:10px;padding:13px 26px;background:transparent;border:var(--bgs);color:var(--gold-dark);font-size:.7rem;font-weight:400;letter-spacing:.2em;text-transform:uppercase;transition:var(--tr);margin-top:14px}
-.btn-directions:hover{background:var(--gold);color:var(--white);border-color:var(--gold)}
-
-/* =====================
-   CONTATO
-===================== */
-#contato{padding:110px 0;background:var(--white);position:relative}
-#contato::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.contato-grid{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:start}
-.contato-tagline{font-family:var(--font-d);font-size:1.1rem;font-weight:400;font-style:italic;color:var(--text-mid);line-height:1.7;margin-bottom:36px;max-width:380px}
-.social-links{display:flex;flex-direction:column;gap:14px;margin-top:32px}
-.social-link{display:flex;align-items:center;gap:16px;transition:var(--tr);padding:14px;border:var(--bg);background:var(--off-white)}
-.social-link:hover{transform:translateX(4px);background:var(--gold-pale);border-color:var(--gold)}
-.sl-icon{width:40px;height:40px;border:var(--bg);display:flex;align-items:center;justify-content:center;font-size:1rem;background:var(--white);transition:var(--tr);flex-shrink:0}
-.social-link:hover .sl-icon{background:var(--gold);border-color:var(--gold)}
-.sl-name{font-size:.68rem;font-weight:400;letter-spacing:.15em;text-transform:uppercase;color:var(--text-light);margin-bottom:2px}
-.sl-handle{font-family:var(--font-d);font-size:1rem;font-weight:400;color:var(--text-dark)}
-
-/* =====================
-   FOOTER
-===================== */
-footer{width:100%;background:#0f0f0f;overflow:hidden;position:relative}
-footer::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.footer-content{display:grid;grid-template-columns:2fr 1fr 1fr;gap:50px;padding:64px 40px 48px;max-width:1200px;margin:0 auto}
-.footer-logo-area{display:flex;align-items:center;gap:12px;margin-bottom:18px}
-.footer-logo-circle{width:44px;height:44px;border:1.5px solid rgba(201,168,76,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
-.footer-logo-circle img{width:100%;height:100%;object-fit:cover;border-radius:50%}
-.footer-logo-circle span{font-family:var(--font-d);font-size:1rem;font-weight:500;font-style:italic;color:var(--gold-light)}
-.footer-brand-name{font-family:var(--font-d);font-size:1.1rem;font-weight:400;color:var(--white)}
-.footer-brand-sub{font-size:.58rem;letter-spacing:.3em;color:var(--gold);text-transform:uppercase}
-.footer-tagline{font-family:var(--font-d);font-size:.92rem;font-style:italic;font-weight:300;color:rgba(255,255,255,.45);line-height:1.7;max-width:260px}
-.footer-col-title{font-size:.62rem;font-weight:400;letter-spacing:.3em;text-transform:uppercase;color:var(--gold);margin-bottom:18px}
-.footer-links{display:flex;flex-direction:column;gap:10px}
-.footer-links a{font-size:.8rem;font-weight:300;color:rgba(255,255,255,.45);transition:color .3s}
-.footer-links a:hover{color:var(--gold-light)}
-.footer-contact-info{display:flex;flex-direction:column;gap:10px}
-.footer-contact-info span{font-size:.8rem;font-weight:300;color:rgba(255,255,255,.45)}
-.footer-bottom{width:100%;padding:22px 40px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;background:#111}
-.footer-copy{color:rgba(255,255,255,.4);font-size:.72rem;font-weight:300}
-.footer-copy span{color:var(--gold)}
-.footer-gold-line{flex:1;min-width:80px;height:1px;background:linear-gradient(to right,transparent,var(--gold),transparent)}
-
-/* =====================
-   WHATSAPP FLOAT
-===================== */
-.whatsapp-float{position:fixed;right:24px;bottom:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
-.whatsapp-float a{text-decoration:none}
-.whatsapp-btn{width:62px;height:62px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 30px rgba(37,211,102,.4);transition:var(--tr)}
-.whatsapp-btn:hover{transform:scale(1.1);box-shadow:0 12px 40px rgba(37,211,102,.5)}
-.whatsapp-btn svg{width:30px;height:30px;fill:#fff}
-.whatsapp-tooltip{background:var(--white);border:var(--bg);padding:7px 14px;font-size:.7rem;color:var(--text-dark);white-space:nowrap;opacity:0;transform:translateX(10px);transition:var(--tr);pointer-events:none;box-shadow:0 4px 20px var(--shadow-soft)}
-.whatsapp-float:hover .whatsapp-tooltip{opacity:1;transform:translateX(0)}
-
-/* =====================
-   RESPONSIVE — TABLET
-===================== */
-@media(max-width:1024px){
-  .container{padding:0 28px}
-  .nav-container{padding:0 28px}
-  .nav-links{gap:18px}
-  .hero-content{gap:44px;padding:100px 28px 64px}
-  .services-grid{grid-template-columns:repeat(2,1fr)}
-  .gallery-grid{columns:2}
-  .localizacao-grid{gap:36px}
-  .contato-grid{gap:40px}
-  .footer-content{padding:52px 28px 40px;gap:36px}
-}
-
-/* =====================
-   RESPONSIVE — MOBILE
-===================== */
-@media(max-width:768px){
-  .container{padding:0 18px}
-  .nav-container{padding:0 18px}
-  .nav-links{display:none}
-  .hamburger{display:flex}
-  .nav-brand-sub{font-size:.5rem;letter-spacing:.15em}
-
-  /* Hero mobile */
-  #home{min-height:auto;padding-top:0}
-  .hero-ornament{display:none}
-  .hero-content{
-    grid-template-columns:1fr;
-    padding:88px 18px 60px;
-    gap:0;
-    text-align:center
-  }
-  .hero-text{order:1;padding-top:0}
-  .hero-image-area{order:2;margin-top:28px;margin-bottom:0}
-  .hero-eyebrow{display:none}
-  .hero-title{font-size:clamp(2.6rem,9vw,3.8rem);margin-bottom:4px}
-  .hero-subtitle{font-size:1.05rem;margin-bottom:20px}
-  .hero-desc{font-size:.85rem;margin:0 auto 32px;max-width:340px}
-  .hero-actions{justify-content:center;flex-direction:column;align-items:stretch;gap:12px}
-  .btn-primary,.btn-outline{width:100%;justify-content:center;padding:16px 20px;font-size:.75rem}
-  .hero-pills{justify-content:center;gap:8px;margin-top:28px;padding-top:28px}
-  .hero-pill{font-size:.62rem;padding:7px 12px}
-  .hero-float-tag{display:none}
-  .hero-img-frame{
-    max-height:none;
-    aspect-ratio:3/4;
-    height:auto;
-    border-radius:20px;
-    overflow:hidden;
-    width:min(300px, 80vw);
-    margin:0 auto
-  }
-  .hero-img-frame::before{display:none}
-  .hero-img-frame img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    object-position:center 15%
-  }
-  .hero-badge{
-    position:static;
-    display:flex;
-    justify-content:center;
-    border:var(--bg);
-    box-shadow:0 4px 20px var(--shadow-soft);
-    padding:12px 18px;
-    margin:10px auto 0;
-    width:fit-content;
-    border-radius:8px
+  // Registrar Service Worker (PWA)
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
-  /* Sections mobile spacing */
-  section{padding:72px 0!important}
-  #home{padding-top:0!important}
+  // Capturar evento de instalação PWA
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    deferredPWA = e;
+    if (!localStorage.getItem('cf_pwa_dismissed')) {
+      setTimeout(() => document.getElementById('pwaInstallBanner').classList.remove('hidden'), 3000);
+    }
+  });
 
-  /* Services mobile */
-  .services-grid{grid-template-columns:1fr;gap:16px}
-  .service-card{padding:24px 20px}
-  .sc-footer{flex-wrap:wrap;gap:12px}
-  .btn-service{width:100%;text-align:center;padding:12px 16px;font-size:.68rem}
+  // Verificar sessão existente
+  const { data: { session } } = await supabase.auth.getSession();
 
-  /* Gallery mobile */
-  .gallery-grid{columns:1;column-gap:0}
-  .gallery-item{margin-bottom:14px;border-radius:10px}
+  if (session) {
+    currentUser = session.user;
+    await bootApp();
+  } else {
+    hideSplash();
+    showAuthScreen();
+  }
 
-  /* Gallery header mobile */
-  .gallery-header{flex-direction:column;align-items:flex-start;gap:16px}
+  // Listener de mudança de autenticação
+  supabase.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentUser = session.user;
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+    }
+  });
 
-  /* Localizacao mobile */
-  .localizacao-grid{grid-template-columns:1fr;gap:32px}
-  .map-iframe{height:260px}
-  .map-container::before{display:none}
+  // Fechar painel de notificações ao clicar fora
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('notifPanel');
+    const bell  = document.querySelector('.notification-bell');
+    if (panel && !panel.classList.contains('hidden') &&
+        !panel.contains(e.target) && !bell?.contains(e.target)) {
+      panel.classList.add('hidden');
+    }
+  });
+});
 
-  /* Contato mobile */
-  .contato-grid{grid-template-columns:1fr;gap:36px}
-  .social-link{padding:12px}
-
-  /* Footer mobile */
-  .footer-content{grid-template-columns:1fr;padding:44px 18px 32px;gap:32px}
-  .footer-bottom{padding:18px;flex-direction:column;text-align:center}
-  .footer-gold-line{width:100%;min-width:auto}
+function hideSplash() {
+  const splash = document.getElementById('splashScreen');
+  if (splash) splash.style.display = 'none';
 }
 
-@media(max-width:480px){
-  .hero-img-frame{width:min(260px,75vw)}
-  .hero-title{font-size:clamp(2.4rem,10vw,3.2rem)}
-  .gallery-grid{columns:1}
-  .map-iframe{height:220px}
-  .whatsapp-btn{width:56px;height:56px}
-  .whatsapp-btn svg{width:26px;height:26px}
-}
-</style>
-</head>
-<body>
-
-<!-- ========= NAVBAR ========= -->
-<nav id="navbar">
-  <div class="nav-container">
-    <div class="nav-logo">
-      <div class="logo-box">
-        <img src="Design sem nome.png" alt="Logo Vânia Almeida">
-      </div>
-      <div class="nav-brand">
-        <span class="nav-brand-name">Vânia Almeida</span>
-        <span class="nav-brand-sub">Clínica de Estética Avançada</span>
-      </div>
-    </div>
-    <div class="nav-links">
-      <a href="#home">Início</a>
-      <a href="#servicos">Serviços</a>
-      <a href="#galeria">Galeria</a>
-      <a href="#localizacao">Localização</a>
-      <a href="#contato">Contato</a>
-      <a href="https://wa.me/558381825128" target="_blank" class="nav-cta">Agendar</a>
-    </div>
-    <button class="hamburger" onclick="toggleMenu()" aria-label="Menu">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
-</nav>
-
-<!-- Mobile Menu -->
-<div class="mobile-menu" id="mobileMenu">
-  <button class="mobile-close" onclick="toggleMenu()" aria-label="Fechar">✕</button>
-  <a href="#home" onclick="toggleMenu()">Início</a>
-  <a href="#servicos" onclick="toggleMenu()">Serviços</a>
-  <a href="#galeria" onclick="toggleMenu()">Galeria</a>
-  <a href="#localizacao" onclick="toggleMenu()">Localização</a>
-  <a href="#contato" onclick="toggleMenu()">Contato</a>
-  <a href="https://wa.me/558381825128" target="_blank" onclick="toggleMenu()" class="mobile-cta-btn">✦ Agendar Agora</a>
-</div>
-
-<!-- ========= HERO ========= -->
-<section id="home">
-  <div class="hero-bg"></div>
-  <div class="hero-ornament"></div>
-  <div class="hero-content">
-
-    <div class="hero-text">
-      <div class="hero-eyebrow">
-        <div class="hero-eyebrow-line"></div>
-        <span>Clínica de Estética Avançada</span>
-      </div>
-      <h1 class="hero-title">
-        Vânia
-        <em>Almeida</em>
-      </h1>
-      <p class="hero-subtitle">Realçando sua beleza com elegância e cuidado</p>
-      <p class="hero-desc">
-        Aqui, cada detalhe é pensado para realçar sua beleza natural com sofisticação e elevar sua autoestima.
-      </p>
-      <div class="hero-actions">
-        <a href="https://wa.me/558381825128" target="_blank" class="btn-primary">
-          <span>✦ Agendar Consulta</span>
-        </a>
-        <a href="#servicos" class="btn-outline">Ver Serviços</a>
-      </div>
-      <div class="hero-pills">
-        <div class="hero-pill"><div class="hero-pill-dot"></div>Estética</div>
-        <div class="hero-pill"><div class="hero-pill-dot"></div>Profissionalismo</div>
-        <div class="hero-pill"><div class="hero-pill-dot"></div>Beleza</div>
-        <div class="hero-pill"><div class="hero-pill-dot"></div>Saúde</div>
-      </div>
-    </div>
-
-    <div class="hero-image-area reveal-right">
-      <div class="hero-float-tag"><span>Estética &amp; Beleza</span></div>
-      <div class="hero-img-frame">
-        <img src="Dr.jpeg" alt="Dra. Vânia Almeida">
-      </div>
-      <div class="hero-badge">
-        <div class="hero-badge-inner">
-          <div class="badge-dot"></div>
-          <div class="badge-text">
-            <strong>Agenda Aberta</strong>
-            Agende seu horário hoje
-          </div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<!-- ========= SERVIÇOS ========= -->
-<section id="servicos">
-  <div class="container">
-    <div class="services-header reveal">
-      <span class="section-tag">Procedimentos</span>
-      <h2 class="section-title">Nossos <em>Serviços</em></h2>
-      <div class="gold-line"></div>
-      <p class="section-subtitle" style="margin:0 auto;">Tratamentos estéticos personalizados com técnica avançada e produtos de primeira linha.</p>
-    </div>
-    <div class="services-grid">
-
-      <div class="service-card reveal d1">
-        <div class="sc-icon">🌿</div>
-        <div class="sc-name">Limpeza de Pele</div>
-        <div class="sc-desc">Limpeza profunda com hidratação e revitalização da pele.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 120,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d2">
-        <div class="sc-icon">✨</div>
-        <div class="sc-name">Microagulhamento</div>
-        <div class="sc-desc">Estimula colágeno, melhora manchas, cicatrizes e textura da pele.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 200,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d3">
-        <div class="sc-icon">🌟</div>
-        <div class="sc-name">Peeling</div>
-        <div class="sc-desc">Renovação celular para suavizar manchas e linhas finas.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 150,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d1">
-        <div class="sc-icon">💧</div>
-        <div class="sc-name">Skinbooster</div>
-        <div class="sc-desc">Hidratação profunda e rejuvenescimento facial avançado.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 200,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d2">
-        <div class="sc-icon">💎</div>
-        <div class="sc-name">Botox</div>
-        <div class="sc-desc">Suavização de rugas e linhas de expressão com naturalidade.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 650,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d3">
-        <div class="sc-icon">🌸</div>
-        <div class="sc-name">Bioestimulador</div>
-        <div class="sc-desc">Estímulo intenso de colágeno para firmeza e rejuvenescimento.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 1.000,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d1">
-        <div class="sc-icon">💋</div>
-        <div class="sc-name">Preenchimento</div>
-        <div class="sc-desc">Contorno facial e volume com ácido hialurônico.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small></small>R$ 700,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d2">
-        <div class="sc-icon">🔥</div>
-        <div class="sc-name">Gordura Localizada</div>
-        <div class="sc-desc">Tratamento corporal para redução de medidas e definição.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>3 sessões</small>R$ 300,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d3">
-        <div class="sc-icon">🌺</div>
-        <div class="sc-name">Flacidez</div>
-        <div class="sc-desc">Procedimento estético para firmeza e sustentação da pele.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>3 sessões</small>R$ 300,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d1">
-        <div class="sc-icon">🩸</div>
-        <div class="sc-name">PEIM</div>
-        <div class="sc-desc">Tratamento para vasinhos com técnica segura e eficiente.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>4 sessões</small>R$ 360,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d2">
-        <div class="sc-icon">🧵</div>
-        <div class="sc-name">Fios Lisos</div>
-        <div class="sc-desc">Sustentação facial e estímulo de colágeno com fios absorvíveis.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>10 fios</small>R$ 500,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d3">
-        <div class="sc-icon">💫</div>
-        <div class="sc-name">Fio Filler</div>
-        <div class="sc-desc">Procedimento para firmeza, volume e rejuvenescimento simultâneo.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>Par</small>R$ 400,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d1">
-        <div class="sc-icon">🏃‍♀️</div>
-        <div class="sc-name">Glúteo Max</div>
-        <div class="sc-desc">Procedimento corporal para volume e definição dos glúteos.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>3 sessões</small>R$ 600,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-      <div class="service-card reveal d2">
-        <div class="sc-icon">🌼</div>
-        <div class="sc-name">Subcisão de Celulite</div>
-        <div class="sc-desc">Tratamento para suavizar celulite e melhorar a textura da pele.</div>
-        <div class="sc-footer">
-          <div class="sc-price"><small>3 sessões</small>R$ 300,00</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-service">Agendar</a>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</section>
-
-<!-- ========= GALERIA ========= -->
-<section id="galeria">
-  <div class="container">
-    <div class="gallery-header">
-      <div class="reveal">
-        <span class="section-tag">Resultados</span>
-        <h2 class="section-title">Galeria <em>de Fotos</em></h2>
-        <div class="gold-line-left"></div>
-      </div>
-      <div class="gallery-filters reveal">
-        <button class="filter-btn active" onclick="filterGallery(this,'all')">Todos</button>
-        <button class="filter-btn" onclick="filterGallery(this,'dr')">Dra. Vânia</button>
-        <button class="filter-btn" onclick="filterGallery(this,'clinica')">Clínica</button>
-      </div>
-    </div>
-
-    <div class="gallery-grid" id="galleryGrid">
-      <div class="gallery-item" data-cat="dr">
-        <img src="DrClinica1.jpeg" alt="Dra. Vânia na Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Dra. Vânia</span></div>
-      </div>
-      <div class="gallery-item" data-cat="dr">
-        <img src="Dr2.jpeg" alt="Dra. Vânia" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Dra. Vânia</span></div>
-      </div>
-      <div class="gallery-item" data-cat="dr">
-        <img src="DrNaMaca.jpeg" alt="Dra. Vânia no Procedimento" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Procedimento</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="Clinica.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="clinica2.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="clinica3.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="clinica4.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="clinica5.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-      <div class="gallery-item" data-cat="clinica">
-        <img src="clinica6.jpeg" alt="Clínica" onclick="openImage(this.src)">
-        <div class="gallery-overlay"><span class="overlay-text">Clínica</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- Modal de imagem -->
-<div id="imageModal" class="image-modal" onclick="closeImage()">
-  <button class="modal-close" onclick="closeImage()">&times;</button>
-  <img id="modalImage" class="modal-image" src="" alt="Imagem ampliada">
-</div>
-
-<!-- ========= LOCALIZAÇÃO ========= -->
-<section id="localizacao">
-  <div class="container">
-    <div class="reveal" style="text-align:center;margin-bottom:56px;">
-      <span class="section-tag">Como Chegar</span>
-      <h2 class="section-title">Nossa <em>Localização</em></h2>
-      <div class="gold-line"></div>
-    </div>
-    <div class="localizacao-grid">
-      <div class="map-container reveal-left">
-        <iframe
-          class="map-iframe"
-          src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3958.5636853007427!2d-34.8701954!3d-7.1763267!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x7ace9de74799a1f%3A0x7edf072cc398d943!2sR.%20Em%C3%ADdio%20Marques%20do%20Vale%2C%20149%20-%20Ernesto%20Geisel%2C%20Jo%C3%A3o%20Pessoa%20-%20PB%2C%2058075-130!5e0!3m2!1spt-BR!2sbr!4v1780095968586!5m2!1spt-BR!2sbr"
-          allowfullscreen=""
-          loading="lazy"
-          referrerpolicy="no-referrer-when-downgrade"
-          title="Localização Vânia Almeida Estética">
-        </iframe>
-      </div>
-      <div class="localizacao-info reveal-right">
-        <div class="info-block">
-          <div class="info-block-title">Endereço</div>
-          <div class="info-block-content">
-            Rua Emídio Marques do Vale, nº 149<br>
-            Bairro Ernesto Geisel – João Pessoa, PB<br>
-            CEP: 58075-130
-          </div>
-          <a href="https://maps.app.goo.gl/nPxy4SRFHumWDQ1NA" target="_blank" class="btn-directions">
-            🗺️ Como Chegar
-          </a>
-        </div>
-        <div class="info-block">
-          <div class="info-block-title">Contato Rápido</div>
-          <a href="https://wa.me/558381825128" target="_blank" class="info-link">
-            <div class="info-link-icon">📱</div>
-            (83) 8182-5128 – WhatsApp
-          </a>
-          <a href="https://www.instagram.com/vaniaalmeida.esteta" target="_blank" class="info-link">
-            <div class="info-link-icon">📷</div>
-            @vaniaalmeida.esteta
-          </a>
-        </div>
-        <div class="info-block">
-          <div class="info-block-title">Horário de Funcionamento (por agendamento)</div>
-          <div class="horario-list">
-            <div class="horario-item"><span class="horario-dia">Segunda-feira</span><span class="horario-hora">08h – 18h</span></div>
-            <div class="horario-item"><span class="horario-dia">Quarta-feira</span><span class="horario-hora">08h – 18h</span></div>
-            <div class="horario-item"><span class="horario-dia">Sexta-feira</span><span class="horario-hora">08h – 18h</span></div>
-            <div class="horario-item"><span class="horario-dia">Sábado</span><span class="horario-hora">08h – 18h</span></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ========= CONTATO ========= -->
-<section id="contato">
-  <div class="container">
-    <div class="reveal" style="text-align:center;margin-bottom:64px;">
-      <span class="section-tag">Fale Conosco</span>
-      <h2 class="section-title">Entre em <em>Contato</em></h2>
-      <div class="gold-line"></div>
-      <p class="section-subtitle" style="margin:0 auto;">Agende sua consulta, tire dúvidas ou solicite informações. Estamos aqui para você.</p>
-    </div>
-    <div class="contato-grid">
-      <div class="reveal-left">
-        <span class="section-tag">Vânia Almeida</span>
-        <h3 class="section-title" style="font-size:2rem;">Vamos conversar<em>?</em></h3>
-        <div class="gold-line-left"></div>
-        <p class="contato-tagline">
-          Agende seu horário e descubra como podemos realçar sua beleza natural com cuidado e profissionalismo.
-        </p>
-        <div class="social-links">
-          <a href="https://wa.me/558381825128" target="_blank" class="social-link">
-            <div class="sl-icon">📱</div>
-            <div>
-              <div class="sl-name">WhatsApp</div>
-              <div class="sl-handle">(83) 8182-5128</div>
-            </div>
-          </a>
-          <a href="https://www.instagram.com/vaniaalmeida.esteta" target="_blank" class="social-link">
-            <div class="sl-icon">📷</div>
-            <div>
-              <div class="sl-name">Instagram</div>
-              <div class="sl-handle">@vaniaalmeida.esteta</div>
-            </div>
-          </a>
-        </div>
-      </div>
-      <!-- CTA mobile extra -->
-      <div class="reveal-right" style="display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:20px;">
-        <div style="border:var(--bg);padding:36px 32px;background:var(--off-white);width:100%;">
-          <p style="font-family:var(--font-d);font-size:1.4rem;font-weight:400;font-style:italic;color:var(--text-dark);margin-bottom:8px;">Pronta para se cuidar?</p>
-          <p style="font-size:.83rem;font-weight:300;color:var(--text-light);line-height:1.7;margin-bottom:24px;">Entre em contato pelo WhatsApp e agende seu horário de forma rápida e fácil.</p>
-          <a href="https://wa.me/558381825128" target="_blank" class="btn-primary" style="width:100%;justify-content:center;">
-            <span>✦ Falar no WhatsApp</span>
-          </a>
-          <div style="margin-top:20px;padding-top:20px;border-top:var(--bg);display:flex;align-items:center;gap:10px;">
-            <div class="badge-dot"></div>
-            <span style="font-size:.72rem;color:var(--text-light);font-weight:300;">Seg, Qua, Sex e Sáb · 8h–18h · João Pessoa, PB</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ========= FOOTER ========= -->
-<footer>
-  <div class="footer-content">
-    <div>
-      <div class="footer-logo-area">
-        <div class="footer-logo-circle">
-          <img src="logo.jpeg" alt="Logo Vânia Almeida">
-        </div>
-        <div>
-          <div class="footer-brand-name">Vânia Almeida</div>
-          <div class="footer-brand-sub">Doutora Esteta</div>
-        </div>
-      </div>
-      <p class="footer-tagline">"Realçando sua beleza com elegância, técnica e muito cuidado."</p>
-    </div>
-    <div>
-      <div class="footer-col-title">Navegação</div>
-      <div class="footer-links">
-        <a href="#home">Início</a>
-        <a href="#servicos">Serviços</a>
-        <a href="#galeria">Galeria</a>
-        <a href="#localizacao">Localização</a>
-        <a href="#contato">Contato</a>
-      </div>
-    </div>
-    <div>
-      <div class="footer-col-title">Contato</div>
-      <div class="footer-contact-info">
-        <span>📍 João Pessoa, PB</span>
-        <span>📱 (83) 8182-5128</span>
-        <span>📷 @vaniaalmeida.esteta</span>
-        <span>⏰ Seg, Qua, Sex e Sáb · 8h–18h</span>
-      </div>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    <div class="footer-copy">© 2026 <span>Vânia Almeida Estética</span>. Todos os direitos reservados.</div>
-    <div class="footer-gold-line"></div>
-    <div class="footer-copy">João Pessoa, Paraíba – Brasil</div>
-  </div>
-</footer>
-
-<!-- ========= WHATSAPP FLOAT ========= -->
-<div class="whatsapp-float">
-  <div class="whatsapp-tooltip">Falar no WhatsApp</div>
-  <a href="https://wa.me/558381825128" target="_blank">
-    <div class="whatsapp-btn">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-      </svg>
-    </div>
-  </a>
-</div>
-
-<!-- ========= JAVASCRIPT ========= -->
-<script>
-// NAVBAR
-const navbar=document.getElementById('navbar');
-window.addEventListener('scroll',()=>navbar.classList.toggle('scrolled',scrollY>50));
-
-// MOBILE MENU
-function toggleMenu(){
-  const m=document.getElementById('mobileMenu');
-  m.classList.toggle('open');
-  document.body.style.overflow=m.classList.contains('open')?'hidden':'';
+function showAuthScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
 }
 
-// SCROLL REVEAL
-const obs=new IntersectionObserver(entries=>{
-  entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')});
-},{threshold:.1,rootMargin:'0px 0px -40px 0px'});
-document.querySelectorAll('.reveal,.reveal-left,.reveal-right').forEach(el=>obs.observe(el));
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS DE UI
+// ═══════════════════════════════════════════════════════════════
+function showLoader()  { document.getElementById('pageLoader').classList.remove('hidden'); }
+function hideLoader()  { document.getElementById('pageLoader').classList.add('hidden'); }
 
-// GALLERY FILTER
-function filterGallery(btn,cat){
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('.gallery-item').forEach(item=>{
-    if(cat==='all'||item.dataset.cat===cat){
-      item.style.display='';
-      item.style.opacity='1';
-    }else{
-      item.style.opacity='0';
-      setTimeout(()=>{if(item.style.opacity==='0')item.style.display='none';},300);
+function showToast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type}`;
+  el.classList.remove('hidden');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => el.classList.add('hidden'), 3000);
+}
+
+function showError(el, msg) {
+  el.textContent = msg;
+  el.className = 'auth-error';
+  el.classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AUTH – LOGIN
+// ═══════════════════════════════════════════════════════════════
+function showForm(id) {
+  ['loginForm','registerForm','resetForm'].forEach(f => document.getElementById(f).classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+async function handleLogin() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+
+  if (!email || !password) { showError(errEl, 'Preencha todos os campos.'); return; }
+
+  showLoader();
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  hideLoader();
+
+  if (error) { showError(errEl, traduzirErroAuth(error.message)); return; }
+
+  currentUser = data.user;
+  await bootApp();
+}
+
+// ─── CADASTRO ────────────────────────────────────────────────
+async function handleRegister() {
+  const clinic   = document.getElementById('regClinic').value.trim();
+  const email    = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value;
+  const errEl    = document.getElementById('registerError');
+
+  if (!clinic || !email || !password) { showError(errEl, 'Preencha todos os campos.'); return; }
+  if (password.length < 6)            { showError(errEl, 'Senha mínima: 6 caracteres.'); return; }
+
+  showLoader();
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  hideLoader();
+
+  if (error) { showError(errEl, traduzirErroAuth(error.message)); return; }
+
+  // Salvar nome da clínica no perfil
+  if (data.user) {
+    await supabase.from('profiles').upsert({ id: data.user.id, nome_clinica: clinic });
+    currentUser = data.user;
+    currentUser.clinic = clinic;
+    await bootApp();
+  } else {
+    // Supabase com confirmação de e-mail habilitada
+    const msgEl = document.getElementById('registerError');
+    msgEl.className = 'auth-error success';
+    msgEl.textContent = 'Conta criada! Verifique seu e-mail para confirmar.';
+    msgEl.classList.remove('hidden');
+  }
+}
+
+// ─── RECUPERAÇÃO DE SENHA ────────────────────────────────────
+async function handleReset() {
+  const email = document.getElementById('resetEmail').value.trim();
+  const msgEl = document.getElementById('resetMsg');
+
+  if (!email) { showError(msgEl, 'Digite seu e-mail.'); return; }
+
+  showLoader();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + window.location.pathname
+  });
+  hideLoader();
+
+  if (error) { showError(msgEl, traduzirErroAuth(error.message)); return; }
+  msgEl.className = 'auth-error success';
+  msgEl.textContent = 'Link de recuperação enviado para seu e-mail!';
+  msgEl.classList.remove('hidden');
+}
+
+// ─── LOGOUT ──────────────────────────────────────────────────
+async function handleLogout() {
+  showLoader();
+  await supabase.auth.signOut();
+  hideLoader();
+  currentUser  = null;
+  allEntradas  = [];
+  allSaidas    = [];
+  allAgenda    = [];
+  destroyCharts();
+  document.getElementById('app').classList.add('hidden');
+  showAuthScreen();
+  showForm('loginForm');
+}
+
+function traduzirErroAuth(msg) {
+  if (msg.includes('Invalid login'))    return 'E-mail ou senha inválidos.';
+  if (msg.includes('User already'))     return 'Este e-mail já está cadastrado.';
+  if (msg.includes('Password should'))  return 'Senha muito fraca.';
+  if (msg.includes('Invalid email'))    return 'E-mail inválido.';
+  if (msg.includes('Email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
+  return msg;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BOOT – Carrega app após autenticação
+// ═══════════════════════════════════════════════════════════════
+async function bootApp() {
+  // Buscar nome da clínica do perfil
+  if (currentUser) {
+    const { data: profile } = await supabase.from('profiles').select('nome_clinica').eq('id', currentUser.id).single();
+    currentUser.clinic = profile?.nome_clinica || currentUser.email;
+  }
+
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('sidebarUser').textContent = currentUser?.clinic || currentUser?.email || '';
+  document.getElementById('app').classList.remove('hidden');
+  hideSplash();
+
+  // Carregar todos os dados do Supabase
+  await loadAllData();
+
+  setDefaultDates();
+  navigate('dashboard');
+  updateNotifBadge();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DATA LAYER – Supabase
+// ═══════════════════════════════════════════════════════════════
+async function loadAllData() {
+  showLoader();
+  const [resE, resS, resA] = await Promise.all([
+    supabase.from('entradas').select('*').eq('user_id', currentUser.id).order('data', { ascending: false }),
+    supabase.from('saidas').select('*').eq('user_id', currentUser.id).order('data', { ascending: false }),
+    supabase.from('agenda').select('*').eq('user_id', currentUser.id).order('data_hora', { ascending: true }),
+  ]);
+
+  // Normaliza campos: Supabase usa snake_case, sistema usa obs
+  allEntradas = (resE.data || []).map(normalizeEntrada);
+  allSaidas   = (resS.data || []).map(normalizeSaida);
+  allAgenda   = (resA.data || []).map(normalizeAgenda);
+  hideLoader();
+}
+
+// Normaliza registro de entrada vindo do Supabase
+function normalizeEntrada(r) {
+  return {
+    id:           r.id,
+    data:         r.data,
+    cliente:      r.cliente,
+    procedimento: r.procedimento,
+    pagamento:    r.pagamento,
+    valor:        Number(r.valor),
+    obs:          r.observacoes || '',
+  };
+}
+function normalizeSaida(r) {
+  return {
+    id:        r.id,
+    data:      r.data,
+    descricao: r.descricao,
+    categoria: r.categoria,
+    pagamento: r.pagamento,
+    valor:     Number(r.valor),
+    obs:       r.observacoes || '',
+  };
+}
+function normalizeAgenda(r) {
+  return {
+    id:           r.id,
+    data_hora:    r.data_hora,
+    cliente:      r.cliente,
+    procedimento: r.procedimento,
+    obs:          r.observacoes || '',
+  };
+}
+
+// ─── CRUD ENTRADAS ────────────────────────────────────────────
+async function dbInsertEntrada(d) {
+  const { data, error } = await supabase.from('entradas').insert({
+    user_id: currentUser.id,
+    data:         d.data,
+    cliente:      d.cliente,
+    procedimento: d.procedimento,
+    pagamento:    d.pagamento,
+    valor:        d.valor,
+    observacoes:  d.obs || null,
+  }).select().single();
+  if (error) throw error;
+  return normalizeEntrada(data);
+}
+
+async function dbUpdateEntrada(id, d) {
+  const { error } = await supabase.from('entradas').update({
+    data:         d.data,
+    cliente:      d.cliente,
+    procedimento: d.procedimento,
+    pagamento:    d.pagamento,
+    valor:        d.valor,
+    observacoes:  d.obs || null,
+  }).eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+async function dbDeleteEntrada(id) {
+  const { error } = await supabase.from('entradas').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+// ─── CRUD SAÍDAS ─────────────────────────────────────────────
+async function dbInsertSaida(d) {
+  const { data, error } = await supabase.from('saidas').insert({
+    user_id:     currentUser.id,
+    data:        d.data,
+    descricao:   d.descricao,
+    categoria:   d.categoria,
+    pagamento:   d.pagamento,
+    valor:       d.valor,
+    observacoes: d.obs || null,
+  }).select().single();
+  if (error) throw error;
+  return normalizeSaida(data);
+}
+
+async function dbUpdateSaida(id, d) {
+  const { error } = await supabase.from('saidas').update({
+    data:        d.data,
+    descricao:   d.descricao,
+    categoria:   d.categoria,
+    pagamento:   d.pagamento,
+    valor:       d.valor,
+    observacoes: d.obs || null,
+  }).eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+async function dbDeleteSaida(id) {
+  const { error } = await supabase.from('saidas').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+// ─── CRUD AGENDA ──────────────────────────────────────────────
+async function dbInsertAgenda(d) {
+  const { data, error } = await supabase.from('agenda').insert({
+    user_id:      currentUser.id,
+    data_hora:    d.data_hora,
+    cliente:      d.cliente,
+    procedimento: d.procedimento,
+    observacoes:  d.obs || null,
+  }).select().single();
+  if (error) throw error;
+  return normalizeAgenda(data);
+}
+
+async function dbUpdateAgenda(id, d) {
+  const { error } = await supabase.from('agenda').update({
+    data_hora:    d.data_hora,
+    cliente:      d.cliente,
+    procedimento: d.procedimento,
+    observacoes:  d.obs || null,
+  }).eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+async function dbDeleteAgenda(id) {
+  const { error } = await supabase.from('agenda').delete().eq('id', id).eq('user_id', currentUser.id);
+  if (error) throw error;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════
+function navigate(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+
+  const titles = { dashboard:'Dashboard', entradas:'Entradas', saidas:'Saídas', agenda:'Agenda', relatorios:'Relatórios' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+
+  closeSidebar();
+
+  switch(page) {
+    case 'dashboard':  updateDashboard(); break;
+    case 'entradas':   renderEntradas();  break;
+    case 'saidas':     renderSaidas();    break;
+    case 'agenda':     renderAgenda();    break;
+    case 'relatorios': initReportDates(); break;
+  }
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').style.transform = 'translateX(0)';
+  document.getElementById('sidebarOverlay').classList.add('active');
+}
+function closeSidebar() {
+  document.getElementById('sidebar').style.transform = '';
+  document.getElementById('sidebarOverlay').classList.remove('active');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+function setDefaultDates() {
+  const now = new Date();
+  const monthSel = document.getElementById('dashMonth');
+  const yearSel  = document.getElementById('dashYear');
+  if (monthSel.options.length > 0) return; // já populado
+
+  const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  months.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i + 1).padStart(2, '0');
+    opt.textContent = m;
+    if (i === now.getMonth()) opt.selected = true;
+    monthSel.appendChild(opt);
+  });
+  for (let y = now.getFullYear(); y >= now.getFullYear() - 4; y--) {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    if (y === now.getFullYear()) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+}
+
+function getSelectedPeriod() {
+  const m = document.getElementById('dashMonth')?.value || String(new Date().getMonth() + 1).padStart(2,'0');
+  const y = document.getElementById('dashYear')?.value  || String(new Date().getFullYear());
+  return { m, y: String(y) };
+}
+
+function updateDashboard() {
+  const { m, y } = getSelectedPeriod();
+  const prefix    = `${y}-${m}`;
+
+  const thisEntradas = allEntradas.filter(e => e.data.startsWith(prefix));
+  const thisSaidas   = allSaidas.filter(s => s.data.startsWith(prefix));
+
+  const totalE = sum(thisEntradas, 'valor');
+  const totalS = sum(thisSaidas, 'valor');
+  const lucro  = totalE - totalS;
+  const saldo  = sum(allEntradas, 'valor') - sum(allSaidas, 'valor');
+  const count  = thisEntradas.length + thisSaidas.length;
+
+  document.getElementById('kpiEntradas').textContent = formatMoney(totalE);
+  document.getElementById('kpiSaidas').textContent   = formatMoney(totalS);
+  document.getElementById('kpiLucro').textContent    = formatMoney(lucro);
+  document.getElementById('kpiSaldo').textContent    = formatMoney(saldo);
+  document.getElementById('kpiCount').textContent    = count;
+
+  // Tendência vs mês anterior
+  const pm  = m === '01' ? '12' : String(parseInt(m) - 1).padStart(2, '0');
+  const py  = m === '01' ? String(parseInt(y) - 1) : y;
+  const lp  = `${py}-${pm}`;
+  const prevE = sum(allEntradas.filter(e => e.data.startsWith(lp)), 'valor');
+  const prevS = sum(allSaidas.filter(s => s.data.startsWith(lp)), 'valor');
+
+  setTrend('kpiEntradasTrend', totalE, prevE);
+  setTrend('kpiSaidasTrend', totalS, prevS);
+  setTrend('kpiLucroTrend', lucro, prevE - prevS);
+
+  renderCharts(y);
+  renderRecentTable(prefix);
+}
+
+function setTrend(elId, curr, prev) {
+  const el = document.getElementById(elId);
+  if (!el || prev === 0) { if(el) el.textContent = ''; return; }
+  const pct = (((curr - prev) / prev) * 100).toFixed(1);
+  const up  = curr >= prev;
+  el.textContent  = `${up ? '▲' : '▼'} ${Math.abs(pct)}% vs mês anterior`;
+  el.className    = 'kpi-trend ' + (up ? 'trend-up' : 'trend-down');
+}
+
+function renderCharts(year) {
+  destroyCharts();
+
+  const monthLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const eByMonth = Array(12).fill(0);
+  const sByMonth = Array(12).fill(0);
+
+  allEntradas.filter(e => e.data.startsWith(year)).forEach(e => {
+    const mi = parseInt(e.data.split('-')[1]) - 1;
+    eByMonth[mi] += e.valor;
+  });
+  allSaidas.filter(s => s.data.startsWith(year)).forEach(s => {
+    const mi = parseInt(s.data.split('-')[1]) - 1;
+    sByMonth[mi] += s.valor;
+  });
+
+  const lucroByMonth = eByMonth.map((e, i) => e - sByMonth[i]);
+
+  const textColor = getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+  const gridColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+
+  const baseOpts = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { labels: { font: { family: 'Inter', size: 11 }, color: textColor } },
+      tooltip: { callbacks: { label: ctx => `  ${formatMoney(ctx.raw)}` } }
+    },
+    scales: {
+      x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Inter', size: 10 } } },
+      y: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'Inter', size: 10 },
+           callback: v => 'R$' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v) } }
+    }
+  };
+
+  // Chart 1 – Compare
+  charts.compare = new Chart(document.getElementById('chartCompare'), {
+    type: 'bar',
+    data: {
+      labels: monthLabels,
+      datasets: [
+        { label: 'Entradas', data: eByMonth, backgroundColor: 'rgba(29,107,58,.7)', borderRadius: 4 },
+        { label: 'Saídas',   data: sByMonth, backgroundColor: 'rgba(139,26,26,.7)', borderRadius: 4 },
+      ]
+    },
+    options: { ...baseOpts, plugins: { ...baseOpts.plugins } }
+  });
+
+  // Chart 2 – Lucro
+  charts.lucro = new Chart(document.getElementById('chartLucro'), {
+    type: 'line',
+    data: {
+      labels: monthLabels,
+      datasets: [{
+        label: 'Lucro', data: lucroByMonth,
+        borderColor: '#C9A84C', backgroundColor: 'rgba(201,168,76,.1)',
+        fill: true, tension: .4,
+        pointBackgroundColor: '#C9A84C', pointRadius: 4,
+      }]
+    },
+    options: { ...baseOpts, plugins: { ...baseOpts.plugins, legend: { display: false } } }
+  });
+
+  // Chart 3 – Categorias
+  const catMap = {};
+  allSaidas.filter(s => s.data.startsWith(year)).forEach(s => {
+    catMap[s.categoria] = (catMap[s.categoria] || 0) + s.valor;
+  });
+  const catColors = ['#C9A84C','#A6852D','#E8D08A','#6B7280','#9CA3AF','#374151','#D1A54A','#F59E0B','#92400E','#1F2937'];
+  charts.categorias = new Chart(document.getElementById('chartCategorias'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(catMap),
+      datasets: [{ data: Object.values(catMap), backgroundColor: catColors, borderWidth: 2, borderColor: 'var(--surface)' }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: 'bottom', labels: { font: { family: 'Inter', size: 10 }, color: textColor, boxWidth: 10 } } }
     }
   });
 }
 
-// MODAL
-function openImage(src){
-  document.getElementById('modalImage').src=src;
-  document.getElementById('imageModal').classList.add('active');
-  document.body.style.overflow='hidden';
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch {} });
+  charts = {};
 }
-function closeImage(){
-  document.getElementById('imageModal').classList.remove('active');
-  document.body.style.overflow='';
+
+function renderRecentTable(prefix) {
+  const all = [
+    ...allEntradas.filter(e => e.data.startsWith(prefix)).map(e => ({ ...e, tipo: 'entrada', desc: `${e.cliente} – ${e.procedimento}` })),
+    ...allSaidas.filter(s => s.data.startsWith(prefix)).map(s => ({ ...s, tipo: 'saida', desc: s.descricao })),
+  ].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 10);
+
+  // Mobile cards
+  const cards = document.getElementById('recentCards');
+  // Desktop table
+  const tbody = document.getElementById('recentBody');
+
+  if (!all.length) {
+    const empty = '<p style="color:var(--text-muted);text-align:center;padding:1.5rem">Nenhum movimento neste mês.</p>';
+    if (cards) cards.innerHTML = empty;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.5rem">Nenhum movimento neste mês.</td></tr>`;
+    return;
+  }
+
+  if (cards) cards.innerHTML = all.map(r => `
+    <div class="record-card ${r.tipo}">
+      <div class="record-card-title">${r.tipo === 'entrada' ? r.cliente : r.descricao}</div>
+      <div class="record-card-value ${r.tipo === 'entrada' ? 'valor-pos' : 'valor-neg'}">${r.tipo === 'entrada' ? '+' : '-'}${formatMoney(r.valor)}</div>
+      <div class="record-card-sub">${fmtDate(r.data)} · ${r.tipo === 'entrada' ? r.procedimento : r.categoria}</div>
+    </div>`).join('');
+
+  if (tbody) tbody.innerHTML = all.map(r => `
+    <tr>
+      <td>${fmtDate(r.data)}</td>
+      <td>${r.desc}</td>
+      <td><span class="badge badge-${r.tipo}">${r.tipo === 'entrada' ? '↑ Entrada' : '↓ Saída'}</span></td>
+      <td class="${r.tipo === 'entrada' ? 'valor-pos' : 'valor-neg'}">${r.tipo === 'entrada' ? '+' : '-'}${formatMoney(r.valor)}</td>
+    </tr>`).join('');
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeImage()});
 
-// ACTIVE NAV
-const secs=document.querySelectorAll('section[id]');
-const nls=document.querySelectorAll('.nav-links a');
-window.addEventListener('scroll',()=>{
-  let cur='';
-  secs.forEach(s=>{if(scrollY>=s.offsetTop-200)cur=s.getAttribute('id')});
-  nls.forEach(l=>{l.style.color=l.getAttribute('href')==='#'+cur?'var(--gold-dark)':''});
-});
+// ═══════════════════════════════════════════════════════════════
+//  ENTRADAS
+// ═══════════════════════════════════════════════════════════════
+function renderEntradas() {
+  let data = [...allEntradas];
 
-// PAGE FADE
-document.addEventListener('DOMContentLoaded',()=>{
-  document.body.style.opacity='0';
-  document.body.style.transition='opacity .5s ease';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{document.body.style.opacity='1'}));
-});
-</script>
-</body>
-</html>
+  const search = document.getElementById('searchEntrada')?.value.toLowerCase() || '';
+  const from   = document.getElementById('filterEntradaFrom')?.value || '';
+  const to     = document.getElementById('filterEntradaTo')?.value   || '';
+  const proc   = document.getElementById('filterEntradaProc')?.value || '';
+
+  if (search) data = data.filter(e => e.cliente.toLowerCase().includes(search) || e.procedimento.toLowerCase().includes(search));
+  if (from)   data = data.filter(e => e.data >= from);
+  if (to)     data = data.filter(e => e.data <= to);
+  if (proc)   data = data.filter(e => e.procedimento === proc);
+
+  if (sortState.table === 'entradas') {
+    data.sort((a, b) => {
+      const va = a[sortState.key]; const vb = b[sortState.key];
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (sortState.asc ? 1 : -1);
+    });
+  } else {
+    data.sort((a,b) => b.data.localeCompare(a.data));
+  }
+
+  // Atualizar datalist de procedimentos
+  const allProcs = [...new Set(allEntradas.map(e => e.procedimento))].sort();
+  const procSel  = document.getElementById('filterEntradaProc');
+  // Mantém apenas a opção "Todos" e depois adiciona
+  while (procSel.options.length > 1) procSel.remove(1);
+  allProcs.forEach(p => { const o = document.createElement('option'); o.textContent = p; procSel.appendChild(o); });
+
+  const cards  = document.getElementById('entradasCards');
+  const tbody  = document.getElementById('entradasBody');
+  const empty  = document.getElementById('entradasEmpty');
+  const footer = document.getElementById('entradasFooter');
+
+  if (!data.length) {
+    if (cards)  cards.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1.5rem">Nenhuma entrada encontrada.</p>';
+    if (tbody)  tbody.innerHTML = '';
+    if (empty)  empty.classList.remove('hidden');
+    if (footer) footer.textContent = '';
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  // Mobile cards
+  if (cards) cards.innerHTML = data.map(e => `
+    <div class="record-card entrada">
+      <div class="record-card-title">${e.cliente}</div>
+      <div class="record-card-value valor-pos">+${formatMoney(e.valor)}</div>
+      <div class="record-card-sub">${fmtDate(e.data)} · ${e.procedimento} · ${e.pagamento}</div>
+      ${e.obs ? `<div class="record-card-sub">${e.obs}</div>` : ''}
+      <div class="record-card-actions">
+        <button class="btn-ghost btn-sm" onclick="editEntrada(${e.id})">✎ Editar</button>
+        <button class="btn-ghost btn-sm" onclick="abrirRecibo(${e.id})">🖨 Recibo</button>
+        <button class="btn-ghost btn-sm" style="color:var(--saida-fg)" onclick="confirmDelete('entrada',${e.id})">🗑 Excluir</button>
+      </div>
+    </div>`).join('');
+
+  // Desktop table
+  if (tbody) tbody.innerHTML = data.map(e => `
+    <tr>
+      <td>${fmtDate(e.data)}</td>
+      <td><strong>${e.cliente}</strong>${e.obs ? `<br><small style="color:var(--text-muted)">${e.obs}</small>` : ''}</td>
+      <td><span class="badge badge-entrada">${e.procedimento}</span></td>
+      <td>${e.pagamento}</td>
+      <td class="valor-pos">${formatMoney(e.valor)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-icon" title="Editar" onclick="editEntrada(${e.id})">✎</button>
+          <button class="btn-icon" title="Recibo" onclick="abrirRecibo(${e.id})">🖨</button>
+          <button class="btn-icon" title="Excluir" onclick="confirmDelete('entrada',${e.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  const total = sum(data, 'valor');
+  if (footer) footer.innerHTML = `<span>${data.length} registro(s)</span><span><strong>Total: ${formatMoney(total)}</strong></span>`;
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+  if (id === 'modalEntrada') {
+    document.getElementById('entradaId').value = '';
+    document.getElementById('entradaData').value = todayStr();
+    ['entradaCliente','entradaValor','entradaProcedimento','entradaObs'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('entradaPagamento').value = '';
+    document.getElementById('modalEntradaTitle').textContent = 'Nova Entrada';
+    document.getElementById('entradaError').classList.add('hidden');
+  }
+  if (id === 'modalSaida') {
+    document.getElementById('saidaId').value = '';
+    document.getElementById('saidaData').value = todayStr();
+    ['saidaDescricao','saidaValor','saidaObs'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('saidaCategoria').value = '';
+    document.getElementById('saidaPagamento').value = '';
+    document.getElementById('modalSaidaTitle').textContent = 'Nova Saída';
+    document.getElementById('saidaError').classList.add('hidden');
+  }
+  if (id === 'modalAgenda') {
+    document.getElementById('agendaId').value = '';
+    ['agendaCliente','agendaProcedimento','agendaObs'].forEach(f => document.getElementById(f).value = '');
+    document.getElementById('agendaDataHora').value = '';
+    document.getElementById('modalAgendaTitle').textContent = 'Novo Agendamento';
+    document.getElementById('agendaError').classList.add('hidden');
+  }
+}
+
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+async function saveEntrada() {
+  const id        = document.getElementById('entradaId').value;
+  const data      = document.getElementById('entradaData').value;
+  const cliente   = document.getElementById('entradaCliente').value.trim();
+  const proc      = document.getElementById('entradaProcedimento').value.trim();
+  const pagamento = document.getElementById('entradaPagamento').value;
+  const valorStr  = document.getElementById('entradaValor').value;
+  const obs       = document.getElementById('entradaObs').value.trim();
+  const errEl     = document.getElementById('entradaError');
+
+  if (!data || !cliente || !proc || !pagamento || !valorStr) { showError(errEl, 'Preencha todos os campos obrigatórios.'); return; }
+  const valor = parseMoney(valorStr);
+  if (!valor || valor <= 0) { showError(errEl, 'Valor inválido.'); return; }
+
+  showLoader();
+  try {
+    if (id) {
+      await dbUpdateEntrada(id, { data, cliente, procedimento: proc, pagamento, valor, obs });
+      const idx = allEntradas.findIndex(e => String(e.id) === String(id));
+      if (idx >= 0) allEntradas[idx] = { id: parseInt(id), data, cliente, procedimento: proc, pagamento, valor, obs };
+      showToast('Entrada atualizada!', 'success');
+    } else {
+      const rec = await dbInsertEntrada({ data, cliente, procedimento: proc, pagamento, valor, obs });
+      allEntradas.unshift(rec);
+      addNotification(`Nova entrada: ${cliente} – ${formatMoney(valor)}`);
+      showToast('Entrada adicionada!', 'success');
+    }
+    closeModal('modalEntrada');
+    renderEntradas();
+    if (currentPage === 'dashboard') updateDashboard();
+  } catch(err) {
+    showError(errEl, 'Erro ao salvar. Tente novamente.');
+    console.error(err);
+  }
+  hideLoader();
+}
+
+function editEntrada(id) {
+  const e = allEntradas.find(e => String(e.id) === String(id));
+  if (!e) return;
+  document.getElementById('entradaId').value           = e.id;
+  document.getElementById('entradaData').value         = e.data;
+  document.getElementById('entradaCliente').value      = e.cliente;
+  document.getElementById('entradaProcedimento').value = e.procedimento;
+  document.getElementById('entradaPagamento').value    = e.pagamento;
+  document.getElementById('entradaValor').value        = formatMoneyInput(e.valor);
+  document.getElementById('entradaObs').value          = e.obs || '';
+  document.getElementById('modalEntradaTitle').textContent = 'Editar Entrada';
+  document.getElementById('modalEntrada').classList.remove('hidden');
+}
+
+function clearFiltersEntrada() {
+  ['searchEntrada','filterEntradaFrom','filterEntradaTo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('filterEntradaProc').value = '';
+  renderEntradas();
+}
+
+// ─── RECIBO ───────────────────────────────────────────────────
+function abrirRecibo(id) {
+  const e = allEntradas.find(e => String(e.id) === String(id));
+  if (!e) return;
+  reciboData = e;
+  document.getElementById('reciboInfo').innerHTML = `
+    <strong>Cliente:</strong> ${e.cliente}<br>
+    <strong>Procedimento:</strong> ${e.procedimento}<br>
+    <strong>Data:</strong> ${fmtDate(e.data)}<br>
+    <strong>Valor:</strong> ${formatMoney(e.valor)}<br>
+    <strong>Pagamento:</strong> ${e.pagamento}
+    ${e.obs ? `<br><strong>Obs:</strong> ${e.obs}` : ''}
+  `;
+  document.getElementById('modalRecibo').classList.remove('hidden');
+}
+
+function imprimirRecibo() {
+  if (!reciboData) return;
+  const e = reciboData;
+  const clinic = currentUser?.clinic || currentUser?.email || 'Clínica';
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body { font-family: Georgia, serif; padding: 40px; max-width: 500px; margin: 0 auto; }
+  .logo { text-align: center; font-size: 1.5rem; color: #C9A84C; margin-bottom: .25rem; }
+  .clinic { text-align: center; font-size: 1.1rem; font-weight: bold; }
+  hr { border: none; border-top: 1px solid #ccc; margin: 20px 0; }
+  .recibo-title { text-align: center; font-size: 1.3rem; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 8px 0; }
+  td:first-child { color: #666; }
+  td:last-child { font-weight: bold; text-align: right; }
+  .valor-total { font-size: 1.5rem; color: #1D6B3A; margin: 20px 0; text-align: center; }
+  .footer { text-align: center; font-size: .8rem; color: #999; margin-top: 30px; }
+  @media print { body { padding: 20px; } }
+</style></head><body>
+<div class="logo">✦</div>
+<div class="clinic">${clinic}</div>
+<hr>
+<div class="recibo-title">Recibo de Pagamento</div>
+<table>
+  <tr><td>Cliente</td><td>${e.cliente}</td></tr>
+  <tr><td>Procedimento</td><td>${e.procedimento}</td></tr>
+  <tr><td>Data</td><td>${fmtDate(e.data)}</td></tr>
+  <tr><td>Forma de Pagamento</td><td>${e.pagamento}</td></tr>
+  ${e.obs ? `<tr><td>Observações</td><td>${e.obs}</td></tr>` : ''}
+</table>
+<div class="valor-total">${formatMoney(e.valor)}</div>
+<hr>
+<div class="footer">Emitido em ${new Date().toLocaleString('pt-BR')} · ClinicFinance</div>
+</body></html>`;
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+  closeModal('modalRecibo');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SAÍDAS
+// ═══════════════════════════════════════════════════════════════
+function renderSaidas() {
+  let data = [...allSaidas];
+
+  const search = document.getElementById('searchSaida')?.value.toLowerCase() || '';
+  const from   = document.getElementById('filterSaidaFrom')?.value || '';
+  const to     = document.getElementById('filterSaidaTo')?.value   || '';
+  const cat    = document.getElementById('filterSaidaCat')?.value  || '';
+
+  if (search) data = data.filter(s => s.descricao.toLowerCase().includes(search));
+  if (from)   data = data.filter(s => s.data >= from);
+  if (to)     data = data.filter(s => s.data <= to);
+  if (cat)    data = data.filter(s => s.categoria === cat);
+
+  if (sortState.table === 'saidas') {
+    data.sort((a, b) => {
+      const va = a[sortState.key]; const vb = b[sortState.key];
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (sortState.asc ? 1 : -1);
+    });
+  } else {
+    data.sort((a,b) => b.data.localeCompare(a.data));
+  }
+
+  const cards  = document.getElementById('saidasCards');
+  const tbody  = document.getElementById('saidasBody');
+  const empty  = document.getElementById('saidasEmpty');
+  const footer = document.getElementById('saidasFooter');
+
+  if (!data.length) {
+    if (cards)  cards.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:1.5rem">Nenhuma saída encontrada.</p>';
+    if (tbody)  tbody.innerHTML = '';
+    if (empty)  empty.classList.remove('hidden');
+    if (footer) footer.textContent = '';
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  if (cards) cards.innerHTML = data.map(s => `
+    <div class="record-card saida">
+      <div class="record-card-title">${s.descricao}</div>
+      <div class="record-card-value valor-neg">-${formatMoney(s.valor)}</div>
+      <div class="record-card-sub">${fmtDate(s.data)} · ${s.categoria} · ${s.pagamento}</div>
+      ${s.obs ? `<div class="record-card-sub">${s.obs}</div>` : ''}
+      <div class="record-card-actions">
+        <button class="btn-ghost btn-sm" onclick="editSaida(${s.id})">✎ Editar</button>
+        <button class="btn-ghost btn-sm" style="color:var(--saida-fg)" onclick="confirmDelete('saida',${s.id})">🗑 Excluir</button>
+      </div>
+    </div>`).join('');
+
+  if (tbody) tbody.innerHTML = data.map(s => `
+    <tr>
+      <td>${fmtDate(s.data)}</td>
+      <td><strong>${s.descricao}</strong>${s.obs ? `<br><small style="color:var(--text-muted)">${s.obs}</small>` : ''}</td>
+      <td><span class="badge" style="background:var(--surface-2);color:var(--text-muted)">${s.categoria}</span></td>
+      <td>${s.pagamento}</td>
+      <td class="valor-neg">-${formatMoney(s.valor)}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-icon" title="Editar" onclick="editSaida(${s.id})">✎</button>
+          <button class="btn-icon" title="Excluir" onclick="confirmDelete('saida',${s.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  const total = sum(data, 'valor');
+  if (footer) footer.innerHTML = `<span>${data.length} registro(s)</span><span><strong>Total: ${formatMoney(total)}</strong></span>`;
+}
+
+async function saveSaida() {
+  const id        = document.getElementById('saidaId').value;
+  const data      = document.getElementById('saidaData').value;
+  const descricao = document.getElementById('saidaDescricao').value.trim();
+  const categoria = document.getElementById('saidaCategoria').value;
+  const pagamento = document.getElementById('saidaPagamento').value;
+  const valorStr  = document.getElementById('saidaValor').value;
+  const obs       = document.getElementById('saidaObs').value.trim();
+  const errEl     = document.getElementById('saidaError');
+
+  if (!data || !descricao || !categoria || !pagamento || !valorStr) { showError(errEl, 'Preencha todos os campos obrigatórios.'); return; }
+  const valor = parseMoney(valorStr);
+  if (!valor || valor <= 0) { showError(errEl, 'Valor inválido.'); return; }
+
+  showLoader();
+  try {
+    if (id) {
+      await dbUpdateSaida(id, { data, descricao, categoria, pagamento, valor, obs });
+      const idx = allSaidas.findIndex(s => String(s.id) === String(id));
+      if (idx >= 0) allSaidas[idx] = { id: parseInt(id), data, descricao, categoria, pagamento, valor, obs };
+      showToast('Saída atualizada!', 'success');
+    } else {
+      const rec = await dbInsertSaida({ data, descricao, categoria, pagamento, valor, obs });
+      allSaidas.unshift(rec);
+      addNotification(`Nova saída: ${descricao} – ${formatMoney(valor)}`);
+      showToast('Saída adicionada!', 'success');
+    }
+    closeModal('modalSaida');
+    renderSaidas();
+    if (currentPage === 'dashboard') updateDashboard();
+  } catch(err) {
+    showError(errEl, 'Erro ao salvar. Tente novamente.');
+    console.error(err);
+  }
+  hideLoader();
+}
+
+function editSaida(id) {
+  const s = allSaidas.find(s => String(s.id) === String(id));
+  if (!s) return;
+  document.getElementById('saidaId').value        = s.id;
+  document.getElementById('saidaData').value      = s.data;
+  document.getElementById('saidaDescricao').value = s.descricao;
+  document.getElementById('saidaCategoria').value = s.categoria;
+  document.getElementById('saidaPagamento').value = s.pagamento;
+  document.getElementById('saidaValor').value     = formatMoneyInput(s.valor);
+  document.getElementById('saidaObs').value       = s.obs || '';
+  document.getElementById('modalSaidaTitle').textContent = 'Editar Saída';
+  document.getElementById('modalSaida').classList.remove('hidden');
+}
+
+function clearFiltersSaida() {
+  ['searchSaida','filterSaidaFrom','filterSaidaTo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('filterSaidaCat').value = '';
+  renderSaidas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  AGENDA
+// ═══════════════════════════════════════════════════════════════
+function renderAgenda() {
+  // Filtra: mostra futuros e hoje
+  const now = new Date().toISOString();
+  const upcoming = allAgenda.filter(a => a.data_hora >= now.slice(0,10));
+  const past     = allAgenda.filter(a => a.data_hora < now.slice(0,10));
+  const data     = [...upcoming, ...past];
+
+  const cards   = document.getElementById('agendaCards');
+  const tbody   = document.getElementById('agendaBody');
+  const empty   = document.getElementById('agendaEmpty');
+
+  if (!data.length) {
+    if (cards) cards.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:2rem">Nenhum agendamento.</p>';
+    if (tbody) tbody.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  if (cards) cards.innerHTML = data.map(a => `
+    <div class="record-card agenda-card">
+      <div class="record-card-title">${a.cliente}</div>
+      <div class="record-card-value" style="color:var(--gold);font-size:.95rem">${fmtDateTime(a.data_hora)}</div>
+      <div class="record-card-sub">${a.procedimento}${a.obs ? ' · ' + a.obs : ''}</div>
+      <div class="record-card-actions">
+        <button class="btn-ghost btn-sm" onclick="editAgenda(${a.id})">✎ Editar</button>
+        <button class="btn-ghost btn-sm" style="color:var(--saida-fg)" onclick="confirmDelete('agenda',${a.id})">🗑 Excluir</button>
+      </div>
+    </div>`).join('');
+
+  if (tbody) tbody.innerHTML = data.map(a => `
+    <tr>
+      <td>${fmtDateTime(a.data_hora)}</td>
+      <td><strong>${a.cliente}</strong></td>
+      <td>${a.procedimento}</td>
+      <td>${a.obs || '—'}</td>
+      <td>
+        <div class="action-btns">
+          <button class="btn-icon" onclick="editAgenda(${a.id})">✎</button>
+          <button class="btn-icon" onclick="confirmDelete('agenda',${a.id})">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function saveAgenda() {
+  const id         = document.getElementById('agendaId').value;
+  const data_hora  = document.getElementById('agendaDataHora').value;
+  const cliente    = document.getElementById('agendaCliente').value.trim();
+  const procedimento = document.getElementById('agendaProcedimento').value.trim();
+  const obs        = document.getElementById('agendaObs').value.trim();
+  const errEl      = document.getElementById('agendaError');
+
+  if (!data_hora || !cliente || !procedimento) { showError(errEl, 'Preencha todos os campos obrigatórios.'); return; }
+
+  showLoader();
+  try {
+    if (id) {
+      await dbUpdateAgenda(id, { data_hora, cliente, procedimento, obs });
+      const idx = allAgenda.findIndex(a => String(a.id) === String(id));
+      if (idx >= 0) allAgenda[idx] = { id: parseInt(id), data_hora, cliente, procedimento, obs };
+      showToast('Agendamento atualizado!', 'success');
+    } else {
+      const rec = await dbInsertAgenda({ data_hora, cliente, procedimento, obs });
+      allAgenda.push(rec);
+      allAgenda.sort((a,b) => a.data_hora.localeCompare(b.data_hora));
+      addNotification(`Novo agendamento: ${cliente} – ${fmtDateTime(data_hora)}`);
+      showToast('Agendamento criado!', 'success');
+    }
+    closeModal('modalAgenda');
+    renderAgenda();
+  } catch(err) {
+    showError(errEl, 'Erro ao salvar. Tente novamente.');
+    console.error(err);
+  }
+  hideLoader();
+}
+
+function editAgenda(id) {
+  const a = allAgenda.find(a => String(a.id) === String(id));
+  if (!a) return;
+  document.getElementById('agendaId').value            = a.id;
+  document.getElementById('agendaDataHora').value      = a.data_hora.slice(0,16);
+  document.getElementById('agendaCliente').value       = a.cliente;
+  document.getElementById('agendaProcedimento').value  = a.procedimento;
+  document.getElementById('agendaObs').value           = a.obs || '';
+  document.getElementById('modalAgendaTitle').textContent = 'Editar Agendamento';
+  document.getElementById('modalAgenda').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DELETE
+// ═══════════════════════════════════════════════════════════════
+function confirmDelete(type, id) {
+  document.getElementById('confirmMsg').textContent = 'Tem certeza? Esta ação não pode ser desfeita.';
+  const btn = document.getElementById('confirmBtn');
+  btn.onclick = async () => {
+    closeModal('modalConfirm');
+    showLoader();
+    try {
+      if (type === 'entrada') {
+        await dbDeleteEntrada(id);
+        allEntradas = allEntradas.filter(e => String(e.id) !== String(id));
+        showToast('Entrada excluída.', 'error');
+        renderEntradas();
+      } else if (type === 'saida') {
+        await dbDeleteSaida(id);
+        allSaidas = allSaidas.filter(s => String(s.id) !== String(id));
+        showToast('Saída excluída.', 'error');
+        renderSaidas();
+      } else if (type === 'agenda') {
+        await dbDeleteAgenda(id);
+        allAgenda = allAgenda.filter(a => String(a.id) !== String(id));
+        showToast('Agendamento excluído.', 'error');
+        renderAgenda();
+      }
+      if (currentPage === 'dashboard') updateDashboard();
+    } catch(err) {
+      showToast('Erro ao excluir.', 'error');
+      console.error(err);
+    }
+    hideLoader();
+  };
+  document.getElementById('modalConfirm').classList.remove('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RELATÓRIOS
+// ═══════════════════════════════════════════════════════════════
+function initReportDates() {
+  applyReportPreset();
+}
+
+function applyReportPreset() {
+  const type = document.getElementById('reportType').value;
+  const now  = new Date();
+  const y    = now.getFullYear();
+  const m    = String(now.getMonth() + 1).padStart(2,'0');
+
+  let from, to;
+  if (type === 'diario') {
+    from = to = todayStr();
+  } else if (type === 'semanal') {
+    const d = new Date(now);
+    d.setDate(d.getDate() - d.getDay());
+    from = d.toISOString().slice(0,10);
+    to   = todayStr();
+  } else if (type === 'mensal') {
+    from = `${y}-${m}-01`;
+    to   = todayStr();
+  } else if (type === 'anual') {
+    from = `${y}-01-01`;
+    to   = todayStr();
+  } else {
+    return; // custom – deixa o usuário preencher
+  }
+  document.getElementById('reportFrom').value = from;
+  document.getElementById('reportTo').value   = to;
+}
+
+function generateReport() {
+  const from = document.getElementById('reportFrom').value;
+  const to   = document.getElementById('reportTo').value;
+  if (!from || !to || from > to) { showToast('Período inválido.', 'error'); return; }
+
+  const entradas = allEntradas.filter(e => e.data >= from && e.data <= to).sort((a,b) => a.data.localeCompare(b.data));
+  const saidas   = allSaidas.filter(s => s.data >= from && s.data <= to).sort((a,b) => a.data.localeCompare(b.data));
+  const totalE   = sum(entradas,'valor');
+  const totalS   = sum(saidas,'valor');
+  const lucro    = totalE - totalS;
+
+  document.getElementById('rptEntradas').textContent = formatMoney(totalE);
+  document.getElementById('rptSaidas').textContent   = formatMoney(totalS);
+  document.getElementById('rptLucro').textContent    = formatMoney(lucro);
+  document.getElementById('rptLucro').style.color = lucro >= 0 ? 'var(--gold-dark)' : 'var(--saida-fg)';
+
+  document.getElementById('rptEntradasBody').innerHTML = entradas.map(e => `
+    <tr><td>${fmtDate(e.data)}</td><td>${e.cliente}</td><td>${e.procedimento}</td><td>${e.pagamento}</td><td class="valor-pos">${formatMoney(e.valor)}</td></tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Sem registros</td></tr>';
+
+  document.getElementById('rptSaidasBody').innerHTML = saidas.map(s => `
+    <tr><td>${fmtDate(s.data)}</td><td>${s.descricao}</td><td>${s.categoria}</td><td>${s.pagamento}</td><td class="valor-neg">${formatMoney(s.valor)}</td></tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Sem registros</td></tr>';
+
+  document.getElementById('reportResult').classList.remove('hidden');
+  document.getElementById('reportResult').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function exportExcel() {
+  const from = document.getElementById('reportFrom').value;
+  const to   = document.getElementById('reportTo').value;
+  const entradas = allEntradas.filter(e => e.data >= from && e.data <= to);
+  const saidas   = allSaidas.filter(s => s.data >= from && s.data <= to);
+
+  const rows = [
+    ['RELATÓRIO FINANCEIRO - ClinicFinance'],[''],
+    ['PERÍODO:', `${fmtDate(from)} a ${fmtDate(to)}`],[''],
+    ['ENTRADAS'],['Data','Cliente','Procedimento','Pagamento','Valor'],
+    ...entradas.map(e => [e.data, e.cliente, e.procedimento, e.pagamento, e.valor]),
+    [''],['','','','TOTAL ENTRADAS', sum(entradas,'valor')],[''],
+    ['SAÍDAS'],['Data','Descrição','Categoria','Pagamento','Valor'],
+    ...saidas.map(s => [s.data, s.descricao, s.categoria, s.pagamento, s.valor]),
+    [''],['','','','TOTAL SAÍDAS', sum(saidas,'valor')],
+    [''],['','','','LUCRO LÍQUIDO', sum(entradas,'valor') - sum(saidas,'valor')],
+  ];
+
+  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  downloadBlob(blob, `relatorio_${from}_${to}.csv`);
+  showToast('CSV exportado!', 'gold');
+}
+
+function exportPDF() {
+  const from    = document.getElementById('reportFrom').value;
+  const to      = document.getElementById('reportTo').value;
+  const entradas = allEntradas.filter(e => e.data >= from && e.data <= to);
+  const saidas   = allSaidas.filter(s => s.data >= from && s.data <= to);
+  const totalE   = sum(entradas,'valor');
+  const totalS   = sum(saidas,'valor');
+  const lucro    = totalE - totalS;
+  const clinic   = currentUser?.clinic || currentUser?.email;
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>
+  body{font-family:Georgia,serif;padding:30px;color:#1A1916;font-size:13px}
+  h1{font-size:24px;color:#C9A84C;margin:0}
+  .sub{color:#7A776E;font-size:11px;margin-bottom:20px}
+  .kpis{display:flex;gap:12px;margin-bottom:20px}
+  .kpi{border:1px solid #E8E5DE;border-radius:8px;padding:10px 14px;flex:1}
+  .kl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#7A776E;margin-bottom:3px}
+  .kv{font-size:20px;font-weight:700}
+  .green{color:#1D6B3A}.red{color:#8B1A1A}.gold{color:#A6852D}
+  table{width:100%;border-collapse:collapse;margin-bottom:20px;font-size:11px}
+  th{background:#F5F4F1;padding:6px 8px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em}
+  td{padding:6px 8px;border-top:1px solid #E8E5DE}
+  h2{font-size:14px;margin:16px 0 8px}
+  .footer{text-align:center;color:#7A776E;font-size:10px;margin-top:20px}
+  @media print{body{padding:15px}}
+</style></head><body>
+<h1>✦ ClinicFinance</h1>
+<div class="sub">${clinic} · ${fmtDate(from)} a ${fmtDate(to)}</div>
+<div class="kpis">
+  <div class="kpi"><div class="kl">Entradas</div><div class="kv green">${formatMoney(totalE)}</div></div>
+  <div class="kpi"><div class="kl">Saídas</div><div class="kv red">${formatMoney(totalS)}</div></div>
+  <div class="kpi"><div class="kl">Lucro</div><div class="kv ${lucro>=0?'gold':'red'}">${formatMoney(lucro)}</div></div>
+</div>
+<h2>Entradas</h2>
+<table><thead><tr><th>Data</th><th>Cliente</th><th>Procedimento</th><th>Pagamento</th><th>Valor</th></tr></thead>
+<tbody>${entradas.map(e=>`<tr><td>${fmtDate(e.data)}</td><td>${e.cliente}</td><td>${e.procedimento}</td><td>${e.pagamento}</td><td class="green">${formatMoney(e.valor)}</td></tr>`).join('')}
+<tr><td colspan="4"><strong>Total</strong></td><td class="green"><strong>${formatMoney(totalE)}</strong></td></tr></tbody></table>
+<h2>Saídas</h2>
+<table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Pagamento</th><th>Valor</th></tr></thead>
+<tbody>${saidas.map(s=>`<tr><td>${fmtDate(s.data)}</td><td>${s.descricao}</td><td>${s.categoria}</td><td>${s.pagamento}</td><td class="red">${formatMoney(s.valor)}</td></tr>`).join('')}
+<tr><td colspan="4"><strong>Total</strong></td><td class="red"><strong>${formatMoney(totalS)}</strong></td></tr></tbody></table>
+<div class="footer">Gerado por ClinicFinance em ${new Date().toLocaleString('pt-BR')}</div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  setTimeout(() => win.print(), 500);
+  showToast('PDF gerado!', 'gold');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SORT
+// ═══════════════════════════════════════════════════════════════
+function sortTable(table, key) {
+  if (sortState.table === table && sortState.key === key) sortState.asc = !sortState.asc;
+  else sortState = { table, key, asc: true };
+  if (table === 'entradas') renderEntradas();
+  else renderSaidas();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ═══════════════════════════════════════════════════════════════
+function addNotification(msg) {
+  notifications.unshift({ msg, time: new Date().toLocaleTimeString('pt-BR') });
+  if (notifications.length > 20) notifications.pop();
+  updateNotifBadge();
+}
+function updateNotifBadge() {
+  const badge = document.getElementById('notifBadge');
+  if (badge) badge.textContent = notifications.length;
+}
+function toggleNotifications() {
+  const panel = document.getElementById('notifPanel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) {
+    document.getElementById('notifList').innerHTML = notifications.length
+      ? notifications.map(n => `<div class="notif-item">${n.msg}<span class="notif-time">${n.time}</span></div>`).join('')
+      : '<div class="notif-item" style="color:var(--text-muted)">Nenhuma notificação.</div>';
+  }
+}
+function clearNotifications() {
+  notifications = [];
+  updateNotifBadge();
+  document.getElementById('notifList').innerHTML = '<div class="notif-item" style="color:var(--text-muted)">Nenhuma notificação.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  DARK MODE
+// ═══════════════════════════════════════════════════════════════
+function toggleDarkMode() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('cf_theme', isDark ? 'light' : 'dark');
+  if (currentPage === 'dashboard') setTimeout(updateDashboard, 60);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  PWA
+// ═══════════════════════════════════════════════════════════════
+async function installPWA() {
+  if (!deferredPWA) return;
+  deferredPWA.prompt();
+  const { outcome } = await deferredPWA.userChoice;
+  if (outcome === 'accepted') showToast('App instalado!', 'gold');
+  deferredPWA = null;
+  document.getElementById('pwaInstallBanner').classList.add('hidden');
+}
+function dismissPWA() {
+  localStorage.setItem('cf_pwa_dismissed', '1');
+  document.getElementById('pwaInstallBanner').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════
+function sum(arr, key) { return arr.reduce((acc, x) => acc + (Number(x[key]) || 0), 0); }
+
+function formatMoney(v) {
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function formatMoneyInput(v) {
+  return Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function parseMoney(s) {
+  return parseFloat(String(s).replace(/\./g,'').replace(',','.')) || 0;
+}
+function maskMoney(el) {
+  let v = el.value.replace(/\D/g,'');
+  if (!v) { el.value = ''; return; }
+  v = (parseInt(v) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  el.value = v;
+}
+function fmtDate(d) {
+  if (!d) return '';
+  const [y,m,day] = d.slice(0,10).split('-');
+  return `${day}/${m}/${y}`;
+}
+function fmtDateTime(dt) {
+  if (!dt) return '';
+  const d = new Date(dt);
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Restaurar tema na carga inicial (antes do DOMContentLoaded)
+(function() {
+  const t = localStorage.getItem('cf_theme');
+  if (t) document.documentElement.setAttribute('data-theme', t);
+})();
